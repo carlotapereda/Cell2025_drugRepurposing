@@ -1,0 +1,154 @@
+---
+title: "createCCObj_mouse"
+author: "Carlota Pereda Serras"
+date: "2023-06-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load Libraries
+
+```{r}
+
+library(CellChat)
+library(ggplot2)                  
+library(patchwork)
+library(igraph)
+library(Seurat)
+options(stringsAsFactors = FALSE)
+```
+
+```{r}
+
+#Load data
+ load("2024DRsnforCCC.RData")
+ 
+data.input <- GetAssayData(DRsn2, assay = "RNA", slot = "data") # normalized data matrix
+
+#Save file NAME now so that you base it on input (saving happens at the end)
+cellChatFileName = "CC_DRsn2_treatment.rds" 
+
+meta = DRsn2@meta.data 
+cell.use = rownames(meta)[meta$group == "treatment"]
+
+data.input = data.input[,cell.use]
+meta = meta[cell.use, ]
+rm(DRsn2) 
+```
+
+```{r}
+cellchat <- createCellChat(object = data.input, meta = meta, group.by ="general_cell_type")
+rm(data.input) #don't need it anymore, remove to free up space
+```
+
+```{r eval = TRUE}
+cellchat <- addMeta(cellchat, meta = meta)
+cellchat <- setIdent(cellchat, ident.use = "general_cell_type") # set "labels" as default cell identity
+levels(cellchat@idents) # show factor levels of the cell labels
+groupSize <- as.numeric(table(cellchat@idents)) # number of cells in each cell group
+
+```
+
+```{r, fig.width=6,fig.height = 2.5, fig.wide = TRUE, fig.align = "center"}
+CellChatDB <- CellChatDB.mouse # use CellChatDB.mouse if running on mouse data
+
+CellChatDB.use <- CellChatDB # simply use the default CellChatDB
+
+# set the used database in the object
+cellchat@DB <- CellChatDB.use
+```
+
+```{r}
+# subset the expression data of signaling genes for saving computation cost
+cellchat <- subsetData(cellchat) # This step is necessary even if using the whole database
+
+cellchat <- identifyOverExpressedGenes(cellchat)
+cellchat <- identifyOverExpressedInteractions(cellchat)
+
+```
+
+```{r}
+cellchat <- computeCommunProb(cellchat)
+# Filter out the cell-cell communication if there are only few number of cells in certain cell groups
+cellchat <- filterCommunication(cellchat, min.cells = 10)
+```
+
+```{r}
+cellchat <- computeCommunProbPathway(cellchat)
+cellchat <- aggregateNet(cellchat)
+```
+
+```{r eval=TRUE}
+saveRDS(cellchat, file = cellChatFileName)
+
+```
+
+# vehicle
+```{r}
+
+#Load data
+ load("2024DRsnforCCC.RData")
+ 
+data.input <- GetAssayData(DRsn2, assay = "RNA", slot = "data") # normalized data matrix
+
+#Save file NAME now so that you base it on input (saving happens at the end)
+cellChatFileName = "CC_DRsn2_vehicle.rds" 
+
+meta = DRsn2@meta.data 
+cell.use = rownames(meta)[meta$group == "vehicle"]
+
+data.input = data.input[,cell.use]
+meta = meta[cell.use, ]
+rm(DRsn2) 
+```
+
+```{r}
+cellchat <- createCellChat(object = data.input, meta = meta, group.by ="general_cell_type")
+rm(data.input) #don't need it anymore, remove to free up space
+```
+
+```{r eval = TRUE}
+cellchat <- addMeta(cellchat, meta = meta)
+cellchat <- setIdent(cellchat, ident.use = "general_cell_type") # set "labels" as default cell identity
+levels(cellchat@idents) # show factor levels of the cell labels
+groupSize <- as.numeric(table(cellchat@idents)) # number of cells in each cell group
+
+```
+
+```{r, fig.width=6,fig.height = 2.5, fig.wide = TRUE, fig.align = "center"}
+CellChatDB <- CellChatDB.mouse # use CellChatDB.mouse if running on mouse data
+
+CellChatDB.use <- CellChatDB # simply use the default CellChatDB
+
+# set the used database in the object
+cellchat@DB <- CellChatDB.use
+```
+
+```{r}
+# subset the expression data of signaling genes for saving computation cost
+cellchat <- subsetData(cellchat) # This step is necessary even if using the whole database
+
+cellchat <- identifyOverExpressedGenes(cellchat)
+cellchat <- identifyOverExpressedInteractions(cellchat)
+
+```
+
+```{r}
+cellchat <- computeCommunProb(cellchat)
+# Filter out the cell-cell communication if there are only few number of cells in certain cell groups
+cellchat <- filterCommunication(cellchat, min.cells = 10)
+```
+
+```{r}
+cellchat <- computeCommunProbPathway(cellchat)
+cellchat <- aggregateNet(cellchat)
+```
+
+```{r eval=TRUE}
+saveRDS(cellchat, file = cellChatFileName)
+
+```
+

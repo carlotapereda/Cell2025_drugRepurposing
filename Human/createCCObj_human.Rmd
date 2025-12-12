@@ -1,0 +1,93 @@
+---
+title: "createCCObj_human"
+author: "Carlota Pereda Serras"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(CellChat)
+library(ggplot2)
+library(patchwork)
+library(igraph)
+library(Seurat)
+options(stringsAsFactors = FALSE)
+```
+
+# Function createCCObj
+```{r}
+createCCObj <- function(condition) {
+  start_time <- Sys.time()
+  # Load data
+  load("2023mzl.RData")
+  
+  data.input <- GetAssayData(mzl, assay = "RNA", slot = "data") # normalized data matrix
+  
+  # Save file NAME now so that you base it on input (saving happens at the end)
+  cellChatFileName = paste0("CC_2023mzl_", condition, ".rds")
+  
+  # A dataframe with rownames containing cell mata data
+  meta = mzl@meta.data 
+  cell.use = rownames(meta)[meta$diagnosis == condition]
+  
+  # Prepare input data for CelChat analysis
+  data.input <- data.input[, cell.use]
+  meta <- meta[cell.use, ]
+  
+  # Create a CellChat (CC) object
+  cellchat <- createCellChat(object = data.input, meta = meta, group.by = "cell_type_identity")
+  
+  # Add cell info into meta slot of the object (Optional)
+  cellchat <- addMeta(cellchat, meta = meta)
+  cellchat <- setIdent(cellchat, ident.use = "cell_type_identity") # set "labels" as default cell identity
+  
+  # Set database
+  CellChatDB <- CellChatDB.human # use CellChatDB.mouse if running on mouse data
+  CellChatDB.use <- CellChatDB # simply use the default CellChatDB
+  cellchat@DB <- CellChatDB.use
+  print("Set DB done")
+  
+  # Preprocessing expression data for CCC analysis
+  cellchat <- subsetData(cellchat)
+
+  #OverExpressedGenes
+  cellchat <- identifyOverExpressedGenes(cellchat)
+  cellchat <- identifyOverExpressedInteractions(cellchat)
+  print("Overexpressed genes done")
+  
+  # Compute communication probability and infer network
+  cellchat <- computeCommunProb(cellchat)
+  cellchat <- filterCommunication(cellchat, min.cells = 10)
+  print("Communication probability done")
+  
+  # Extract the CC network as a data frame
+  df.net <- subsetCommunication(cellchat)
+  
+  # Infer the CCC at a signaling pathway level
+  cellchat <- computeCommunProbPathway(cellchat)
+  cellchat <- aggregateNet(cellchat)
+  print("Communication probability pathways done")
+  
+  # Save the CellChat object
+  saveRDS(cellchat, file = cellChatFileName)
+  print("saved")
+  
+  
+  end_time <- Sys.time()
+  diff <- end_time - start_time
+  print(diff)
+  
+}
+```
+
+```{r}
+
+createCCObj("AD")
+createCCObj("ctl")
+
+```
+
